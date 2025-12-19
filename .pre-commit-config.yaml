@@ -31,6 +31,7 @@ repos:
             "--no-dev",
             "--group",
             "telebot",
+            "--no-install-project",
             "--frozen",
             "--no-hashes",
             "--output-file=requirements.txt",
