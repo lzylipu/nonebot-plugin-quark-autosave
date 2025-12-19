@@ -14,8 +14,7 @@ COPY requirements.txt .
 
 RUN uv venv && uv pip install -r requirements.txt
 
-COPY pyproject.toml uv.lock bot.py start.sh README.md ./
-COPY src/ ./src/
+COPY . .
 
 RUN chmod +x start.sh
 
