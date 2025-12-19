@@ -1,8 +1,9 @@
 *
 
-!./src/
-!pyproject.toml
-!requirements.txt
+!src/
+!bot.py
 !uv.lock
 !start.sh
 !README.md
+!pyproject.toml
+!requirements.txt
