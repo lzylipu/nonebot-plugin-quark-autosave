@@ -50,16 +50,13 @@ async def _(event: Event):
     text = get_text(event)
     user_key = get_user_key(event)
 
-    # 第一步：收到启动命令
     if text == str(plugin_config.simple_command):
         WAITING_USERS[user_key] = True
         await simple_qas.finish("继续")
 
-    # 第二步：不在等待状态，忽略
     if not WAITING_USERS.get(user_key, False):
         return
 
-    # 第三步：收到链接
     if not re.fullmatch(SHARE_URL_REGEX_SIMPLE, text):
         WAITING_USERS[user_key] = False
         await simple_qas.finish("错")
