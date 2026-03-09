@@ -2,6 +2,7 @@ import re
 
 from nonebot import on_message
 from nonebot.adapters import Event
+from nonebot.exception import FinishedException
 from nonebot.permission import SUPERUSER
 from nonebot.plugin import PluginMetadata, inherit_supported_adapters
 
@@ -83,9 +84,13 @@ async def _(event: Event):
 
             await client.delete_task(task_idx)
 
-        WAITING_USERS[user_key] = False
-        await simple_qas.finish("好了")
+    except FinishedException:
+        raise
+
     except Exception as e:
         print(f"[nonebot_plugin_quark_autosave] error: {e}")
         WAITING_USERS[user_key] = False
         await simple_qas.finish("错")
+
+    WAITING_USERS[user_key] = False
+    await simple_qas.finish("好了")
