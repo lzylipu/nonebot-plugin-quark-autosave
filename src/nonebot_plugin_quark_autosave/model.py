@@ -131,7 +131,7 @@ class TaskItem(BaseModel):
     pattern: str = ""
     replace: str = ""
     enddate: str = ""
-    addition: Addition | None = None
+    addition: Addition | dict[str, Any] | None = None
     ignore_extension: bool = False
     runweek: RunWeek = Field(default_factory=lambda: [5, 6, 7])
     startfid: str | None = None
@@ -185,7 +185,12 @@ class TaskItem(BaseModel):
             ignore_extension=False,
             runweek=[],
             startfid="",
-            addition={},
+            addition={
+                "aria2": {
+                    "auto_download": True,
+                    "pause": False,
+                }
+            },
         )
 
     def set_pattern(self, pattern_idx: PatternIdx):
