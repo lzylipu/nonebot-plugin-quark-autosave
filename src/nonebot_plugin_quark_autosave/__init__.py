@@ -1,7 +1,7 @@
 import re
 
 from nonebot import on_message
-from nonebot.adapters import Event
+from nonebot.adapters import MessageEvent
 from nonebot.permission import SUPERUSER
 from nonebot.plugin import PluginMetadata, inherit_supported_adapters
 
@@ -26,26 +26,15 @@ SHARE_URL_REGEX_SIMPLE = (
     r"(?:#/list/share/[0-9a-zA-Z]+)?$"
 )
 
-# 简单用户会话状态：user_id -> 是否等待链接
 WAITING_USERS: dict[str, bool] = {}
 
 simple_qas = on_message(permission=SUPERUSER, block=True)
 
 
-def get_user_key(event: Event) -> str:
-    user_id = getattr(event, "get_user_id", None)
-    if callable(user_id):
-        try:
-            return str(user_id())
-        except Exception:
-            pass
-    return "unknown"
-
-
 @simple_qas.handle()
-async def _(event: Event):
-    text = str(event.get_plaintext()).strip()
-    user_key = get_user_key(event)
+async def _(event: MessageEvent):
+    text = event.get_plaintext().strip()
+    user_key = event.get_user_id()
 
     # 第一步：收到启动命令
     if text == str(plugin_config.simple_command):
