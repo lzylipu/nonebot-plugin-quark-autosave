@@ -11,7 +11,7 @@ nonebot.init()
 driver = nonebot.get_driver()
 driver.register_adapter(TelegramAdapter)
 
-# 从源码目录加载插件，而不是加载 site-packages 里的已安装版本
+# 从源码目录加载插件，不加载 site-packages 里的旧版本
 nonebot.load_plugins("/app/src")
 
 if __name__ == "__main__":
