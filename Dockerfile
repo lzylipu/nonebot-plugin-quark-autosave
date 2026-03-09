@@ -24,6 +24,7 @@ RUN pip install --no-cache-dir --upgrade pip && \
     "httpx>=0.27.0,<1.0.0" \
     "nonebot-plugin-alconna>=0.59.4,<1.0.0" \
     "nonebot2[fastapi,httpx]>=2.4.3,<3.0.0" \
-    "nonebot-adapter-telegram>=0.1.0b20"
+    "nonebot-adapter-telegram>=0.1.0b20" \
+    "nonebot-plugin-waiter>=0.8.1"
 
 CMD ["/bin/bash", "/app/start.sh"]
