@@ -1,8 +1,8 @@
 import re
 
 from nonebot import on_command, require
-from nonebot.plugin import PluginMetadata, inherit_supported_adapters
 from nonebot.permission import SUPERUSER
+from nonebot.plugin import PluginMetadata, inherit_supported_adapters
 from nonebot.typing import T_State
 
 require("nonebot_plugin_alconna")
@@ -23,12 +23,10 @@ __plugin_meta__ = PluginMetadata(
     extra={"author": "fllesser / co-created"},
 )
 
-SIMPLE_FLOW_KEY = "QAS_SIMPLE_FLOW"
-
 # 兼容：
-# pan.quark.cn/s/xxxx
-# https://pan.quark.cn/s/xxxx
-# https://pan.quark.cn/s/xxxx?pwd=xxxx#/list/share/xxxx
+# https://pan.quark.cn/s/461b6af90a65
+# pan.quark.cn/s/461b6af90a65
+# https://pan.quark.cn/s/461b6af90a65?pwd=xxxx#/list/share/xxxxxxxx
 SHARE_URL_REGEX_SIMPLE = (
     r"(?:https://|http://)?pan\.quark\.cn/s/[0-9a-zA-Z]+"
     r"(?:\?pwd=[0-9a-zA-Z]+)?"
@@ -44,45 +42,40 @@ simple_qas = on_command(
 
 @simple_qas.handle()
 async def _(state: T_State):
-    state[SIMPLE_FLOW_KEY] = {}
+    state["QAS_SIMPLE_FLOW"] = {}
     await simple_qas.send("继续")
 
 
 @simple_qas.got("shareurl", prompt="继续")
 @handle_exception()
 async def _(state: T_State, shareurl: str):
-    shareurl = shareurl.strip()
+    try:
+        shareurl = shareurl.strip()
 
-    if not re.fullmatch(SHARE_URL_REGEX_SIMPLE, shareurl):
-        await simple_qas.reject("继续")
+        if not re.fullmatch(SHARE_URL_REGEX_SIMPLE, shareurl):
+            await simple_qas.reject("继续")
 
-    if not shareurl.startswith("http://") and not shareurl.startswith("https://"):
-        shareurl = "https://" + shareurl
+        if not shareurl.startswith("http://") and not shareurl.startswith("https://"):
+            shareurl = "https://" + shareurl
 
-    async with QASClient() as client:
-        # 先读取分享详情，拿根目录标题
-        temp_task = TaskItem.simple_from_title("临时任务", shareurl)
-        detail = await client.get_share_detail(temp_task)
+        async with QASClient() as client:
+            temp_task = TaskItem.simple_from_title("临时任务", shareurl)
+            detail = await client.get_share_detail(temp_task)
 
-        root_title = sanitize_title(detail.share.title)
+            root_title = sanitize_title(detail.share.title)
 
-        # 自动创建任务：
-        # 任务名称 = 根目录名称
-        # 保存路径 = /自动/根目录名称
-        task = TaskItem.simple_from_title(root_title, shareurl)
+            task = TaskItem.simple_from_title(root_title, shareurl)
 
-        # 先添加任务
-        await client.add_task(task)
+            await client.add_task(task)
 
-        # 重新获取任务列表，拿最后一条索引（刚创建的任务）
-        data = await client.get_data()
-        task_idx = len(data.tasklist)
+            data = await client.get_data()
+            task_idx = len(data.tasklist)
 
-        # 只执行这一条新任务
-        async for _ in client.run_script(task_idx):
-            pass
+            async for _ in client.run_script(task_idx):
+                pass
 
-        # 执行完立即删除这个任务
-        await client.delete_task(task_idx)
+            await client.delete_task(task_idx)
 
-    await simple_qas.finish("好了")
+        await simple_qas.finish("好了")
+    except Exception:
+        await simple_qas.finish("错")
