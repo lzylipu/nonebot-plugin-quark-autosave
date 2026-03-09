@@ -21,12 +21,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Debug source files
+      - name: Show source snapshot
         run: |
           echo "===== bot.py ====="
           sed -n '1,80p' bot.py
-          echo "===== __init__.py ====="
-          sed -n '1,80p' src/nonebot_plugin_quark_autosave/__init__.py
+          echo "===== plugin __init__.py ====="
+          sed -n '1,120p' src/nonebot_plugin_quark_autosave/__init__.py
+          echo "===== Dockerfile ====="
+          sed -n '1,120p' Dockerfile
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -55,6 +57,8 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
+          no-cache: true
+          pull: true
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
