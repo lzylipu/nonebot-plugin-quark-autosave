@@ -19,7 +19,7 @@ COPY start.sh /app/start.sh
 
 RUN chmod +x /app/start.sh
 
-# 只装运行 Telegram bot 需要的依赖，不装 dev/test
+# 只安装运行需要的依赖，不装 dev
 RUN uv sync --locked --no-dev --only-group telebot
 
 CMD ["/bin/bash", "/app/start.sh"]
