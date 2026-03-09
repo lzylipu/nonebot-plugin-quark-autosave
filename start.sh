@@ -14,4 +14,4 @@ SIMPLE_COMMAND=${SIMPLE_COMMAND}
 SIMPLE_SAVE_ROOT=${SIMPLE_SAVE_ROOT}
 EOF
 
-exec uv run python /app/bot.py
+exec python /app/bot.py
