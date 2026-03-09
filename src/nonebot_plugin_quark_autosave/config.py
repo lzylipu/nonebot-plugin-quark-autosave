@@ -8,7 +8,7 @@ class Config(BaseModel):
     qas_path_base: str = "夸克自动转存"
 
     # 极简流程配置
-    simple_command: str = "1"
+    simple_command: str | int = "1"
     simple_save_root: str = "自动"
 
 
