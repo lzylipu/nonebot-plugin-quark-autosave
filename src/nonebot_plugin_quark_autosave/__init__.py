@@ -1,7 +1,7 @@
 import re
 
 from nonebot import on_message
-from nonebot.adapters import MessageEvent
+from nonebot.adapters import Event
 from nonebot.permission import SUPERUSER
 from nonebot.plugin import PluginMetadata, inherit_supported_adapters
 
@@ -31,10 +31,24 @@ WAITING_USERS: dict[str, bool] = {}
 simple_qas = on_message(permission=SUPERUSER, block=True)
 
 
+def get_user_key(event: Event) -> str:
+    try:
+        return str(event.get_user_id())
+    except Exception:
+        return "unknown"
+
+
+def get_text(event: Event) -> str:
+    try:
+        return str(event.get_plaintext()).strip()
+    except Exception:
+        return str(getattr(event, "message", "")).strip()
+
+
 @simple_qas.handle()
-async def _(event: MessageEvent):
-    text = event.get_plaintext().strip()
-    user_key = event.get_user_id()
+async def _(event: Event):
+    text = get_text(event)
+    user_key = get_user_key(event)
 
     # 第一步：收到启动命令
     if text == str(plugin_config.simple_command):
@@ -56,28 +70,20 @@ async def _(event: MessageEvent):
 
     try:
         async with QASClient() as client:
-            # 先读取分享详情，拿根目录标题
             temp_task = TaskItem.simple_from_title("临时任务", shareurl)
             detail = await client.get_share_detail(temp_task)
 
             root_title = sanitize_title(detail.share.title)
-
-            # 自动创建任务：
-            # 任务名称 = 根目录名称
-            # 保存路径 = /自动/根目录名称
             task = TaskItem.simple_from_title(root_title, shareurl)
 
             await client.add_task(task)
 
-            # 重新获取任务列表，拿最后一条索引（刚创建的任务）
             data = await client.get_data()
             task_idx = len(data.tasklist)
 
-            # 只执行这一条新任务
             async for _ in client.run_script(task_idx):
                 pass
 
-            # 执行完立即删除这个任务
             await client.delete_task(task_idx)
 
         WAITING_USERS[user_key] = False
