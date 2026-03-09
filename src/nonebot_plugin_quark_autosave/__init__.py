@@ -1,15 +1,12 @@
 import re
 
-from nonebot import on_command, require
+from nonebot import on_message
+from nonebot.adapters import Event
 from nonebot.permission import SUPERUSER
 from nonebot.plugin import PluginMetadata, inherit_supported_adapters
-from nonebot.typing import T_State
-
-require("nonebot_plugin_alconna")
 
 from .client import QASClient
 from .config import Config, plugin_config
-from .exception import handle_exception
 from .model import TaskItem, sanitize_title
 
 __plugin_meta__ = PluginMetadata(
@@ -19,63 +16,84 @@ __plugin_meta__ = PluginMetadata(
     type="application",
     homepage="https://github.com/fllesser/nonebot-plugin-quark-autosave",
     config=Config,
-    supported_adapters=inherit_supported_adapters("nonebot_plugin_alconna"),
+    supported_adapters=inherit_supported_adapters(),
     extra={"author": "fllesser / co-created"},
 )
 
-# 兼容：
-# https://pan.quark.cn/s/461b6af90a65
-# pan.quark.cn/s/461b6af90a65
-# https://pan.quark.cn/s/461b6af90a65?pwd=xxxx#/list/share/xxxxxxxx
 SHARE_URL_REGEX_SIMPLE = (
-    r"(?:https://|http://)?pan\.quark\.cn/s/[0-9a-zA-Z]+"
+    r"^(?:https://|http://)?pan\.quark\.cn/s/[0-9a-zA-Z]+"
     r"(?:\?pwd=[0-9a-zA-Z]+)?"
-    r"(?:#/list/share/[0-9a-zA-Z]+)?"
+    r"(?:#/list/share/[0-9a-zA-Z]+)?$"
 )
 
-simple_qas = on_command(
-    str(plugin_config.simple_command),
-    permission=SUPERUSER,
-    block=True,
-)
+# 简单用户会话状态：user_id -> 是否等待链接
+WAITING_USERS: dict[str, bool] = {}
+
+simple_qas = on_message(permission=SUPERUSER, block=True)
+
+
+def get_user_key(event: Event) -> str:
+    user_id = getattr(event, "get_user_id", None)
+    if callable(user_id):
+        try:
+            return str(user_id())
+        except Exception:
+            pass
+    return "unknown"
 
 
 @simple_qas.handle()
-async def _(state: T_State):
-    state["QAS_SIMPLE_FLOW"] = {}
-    await simple_qas.send("继续")
+async def _(event: Event):
+    text = str(event.get_plaintext()).strip()
+    user_key = get_user_key(event)
 
+    # 第一步：收到启动命令
+    if text == str(plugin_config.simple_command):
+        WAITING_USERS[user_key] = True
+        await simple_qas.finish("继续")
 
-@simple_qas.got("shareurl", prompt="继续")
-@handle_exception()
-async def _(state: T_State, shareurl: str):
+    # 第二步：不在等待状态，忽略
+    if not WAITING_USERS.get(user_key, False):
+        return
+
+    # 第三步：收到链接
+    if not re.fullmatch(SHARE_URL_REGEX_SIMPLE, text):
+        WAITING_USERS[user_key] = False
+        await simple_qas.finish("错")
+
+    shareurl = text
+    if not shareurl.startswith("http://") and not shareurl.startswith("https://"):
+        shareurl = "https://" + shareurl
+
     try:
-        shareurl = shareurl.strip()
-
-        if not re.fullmatch(SHARE_URL_REGEX_SIMPLE, shareurl):
-            await simple_qas.reject("继续")
-
-        if not shareurl.startswith("http://") and not shareurl.startswith("https://"):
-            shareurl = "https://" + shareurl
-
         async with QASClient() as client:
+            # 先读取分享详情，拿根目录标题
             temp_task = TaskItem.simple_from_title("临时任务", shareurl)
             detail = await client.get_share_detail(temp_task)
 
             root_title = sanitize_title(detail.share.title)
 
+            # 自动创建任务：
+            # 任务名称 = 根目录名称
+            # 保存路径 = /自动/根目录名称
             task = TaskItem.simple_from_title(root_title, shareurl)
 
             await client.add_task(task)
 
+            # 重新获取任务列表，拿最后一条索引（刚创建的任务）
             data = await client.get_data()
             task_idx = len(data.tasklist)
 
+            # 只执行这一条新任务
             async for _ in client.run_script(task_idx):
                 pass
 
+            # 执行完立即删除这个任务
             await client.delete_task(task_idx)
 
+        WAITING_USERS[user_key] = False
         await simple_qas.finish("好了")
-    except Exception:
+    except Exception as e:
+        print(f"[nonebot_plugin_quark_autosave] error: {e}")
+        WAITING_USERS[user_key] = False
         await simple_qas.finish("错")
